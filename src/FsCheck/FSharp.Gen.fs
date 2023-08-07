@@ -7,9 +7,9 @@ type internal IGen =
     abstract AsGenObject : Gen<obj>
 
 /// Generator of a random value, based on a size parameter and a randomly generated int.
-and [<NoEquality;NoComparison>] Gen<'T> = private Gen of (int -> Rnd -> struct ('T * Rnd)) with
+and [<NoEquality;NoComparison>] Gen<'T> = Gen of (int -> Rnd -> struct ('T * Rnd)) with
     interface IGen with
-        member t.AsGenObject = 
+        member t.AsGenObject =
             let (Gen g) = t
             Gen (fun s r0 -> let struct (value,r1) = g s r0 in struct (box value, r1))
 
@@ -42,34 +42,34 @@ module Gen =
     /// Create a new generator by applying f to each value in the given generator.
     //[category: Creating generators from generators]
     [<CompiledName("Map")>]
-    let map (f:'T->'U) (Gen g:Gen<'T>) = 
+    let map (f:'T->'U) (Gen g:Gen<'T>) =
         Gen (fun s r0 ->
                 let struct (value,r1) = g s r0
                 struct (f value, r1))
 
-    /// Generate fresh instances by calling create every time the generator 
+    /// Generate fresh instances by calling create every time the generator
     /// generates a new value. Useful for generating new instances of mutable
     /// objects.
     /// See also constant.
     //[category: Creating generators]
     [<CompiledName("Fresh")>]
-    let fresh create :Gen<'T> = 
+    let fresh create :Gen<'T> =
         constant () |> map create
 
     /// Apply the functions f from the first generator to the values from the second generator pairwise,
     /// yielding a new generator that generates the results.
     //[category: Creating generators from generators]
     [<CompiledName("Apply")>]
-    let apply (Gen f:Gen<'T->'U>) (Gen a:Gen<'T>) :Gen<'U> = 
+    let apply (Gen f:Gen<'T->'U>) (Gen a:Gen<'T>) :Gen<'U> =
         Gen (fun n r0 -> let struct (f',r1) = f n r0
                          let struct (a',r2) = a n r1
                          struct (f' a', r2))
 
-    /// Creates a new generator that generates values from the source generator, 
+    /// Creates a new generator that generates values from the source generator,
     /// applies the function k to them, and generates values from the resulting generator.
     //[category: Creating generators from generators]
     [<CompiledName("Bind")>]
-    let bind (k : _ -> Gen<'U>) (Gen g : Gen<'T>) : Gen<_> = 
+    let bind (k : _ -> Gen<'U>) (Gen g : Gen<'T>) : Gen<_> =
         Gen (fun n r0 -> let struct(v,r1) = g n r0
                          let (Gen g') = k v
                          g' n r1)
@@ -77,7 +77,7 @@ module Gen =
     /// Create a new generator by applying f to each value in the given generators.
     //[category: Creating generators from generators]
     [<CompiledName("Map")>]
-    let map2 f (Gen a) (Gen b) = 
+    let map2 f (Gen a) (Gen b) =
         Gen (fun size r0 ->
                 let struct (a',r1) = a size r0
                 let struct (b',r2) = b size r1
@@ -86,7 +86,7 @@ module Gen =
     /// Create a new generator by applying f to each value in the given generators.
     //[category: Creating generators from generators]
     [<CompiledName("Map")>]
-    let map3 f (Gen a) (Gen b) (Gen c) = 
+    let map3 f (Gen a) (Gen b) (Gen c) =
         Gen (fun size r0 ->
                 let struct (a',r1) = a size r0
                 let struct (b',r2) = b size r1
@@ -96,7 +96,7 @@ module Gen =
     /// Create a new generator by applying f to each value in the given generators.
     //[category: Creating generators from generators]
     [<CompiledName("Map")>]
-    let map4 f (Gen a) (Gen b) (Gen c) (Gen d) = 
+    let map4 f (Gen a) (Gen b) (Gen c) (Gen d) =
         Gen (fun size r0 ->
                 let struct (a',r1) = a size r0
                 let struct (b',r2) = b size r1
@@ -107,7 +107,7 @@ module Gen =
     /// Create a new generator by applying f to each value in the given generators.
     //[category: Creating generators from generators]
     [<CompiledName("Map")>]
-    let map5 f (Gen a) (Gen b) (Gen c) (Gen d) (Gen e) = 
+    let map5 f (Gen a) (Gen b) (Gen c) (Gen d) (Gen e) =
         Gen (fun size r0 ->
                 let struct (a',r1) = a size r0
                 let struct (b',r2) = b size r1
@@ -119,7 +119,7 @@ module Gen =
         /// Create a new generator by applying f to each value in the given generators.
     //[category: Creating generators from generators]
     [<CompiledName("Map")>]
-    let map6 f (Gen a) (Gen b) (Gen c) (Gen d) (Gen e) (Gen g) = 
+    let map6 f (Gen a) (Gen b) (Gen c) (Gen d) (Gen e) (Gen g) =
         Gen (fun size r0 ->
                 let struct (a',r1) = a size r0
                 let struct (b',r2) = b size r1
@@ -128,7 +128,7 @@ module Gen =
                 let struct (e',r5) = e size r4
                 let struct (g',r6) = g size r5
                 struct (f a' b' c' d' e' g', r6))
-        
+
     /// Obtain the current size. sized g calls g, passing it the current size as a parameter.
     //[category: Managing size]
     [<CompiledName("Sized")>]
@@ -147,7 +147,7 @@ module Gen =
     /// Generates n values of the given size and starting with the given seed.
     //[category: Generating test values]
     [<CompiledName("Sample")>]
-    let sampleWithSeed seed size nbSamples (Gen generator) :'T[] = 
+    let sampleWithSeed seed size nbSamples (Gen generator) :'T[] =
         let mutable currentRnd = seed
         [| for i in 1..nbSamples do
             let struct (sv,rnd') = generator size currentRnd
@@ -209,7 +209,7 @@ module Gen =
     let elements (xs : seq<'T>) =
         let elems = ListAccessWrapper<_>.Create xs
         choose (0, elems.Count-1) |> map elems.Item
-    
+
     ///Build a generator that takes a non-empty sequence and randomly generates
     ///one of the values among an initial segment of that sequence. The size of
     ///this initial segment increases with the size parameter. Essentially this
@@ -246,10 +246,10 @@ module Gen =
         let rec pick i n =
             let k,x = xs.[i]
             if n<=k then x else pick (i+1) (n-k)
-        if tot <= 0 then 
+        if tot <= 0 then
             invalidArg "dist" "Frequency was called with a sum of probabilities less than or equal to 0. No elements can be generated."
         else
-            bind (pick 0) (choose (1,tot)) 
+            bind (pick 0) (choose (1,tot))
 
     ///Build a generator that generates a 2-tuple of the values generated by the given generator.
     //[category: Creating generators from generators]
@@ -281,7 +281,7 @@ module Gen =
     [<CompiledName("CollectToList")>]
     let collectToList (f:'T->Gen<'U>) (source:seq<'T>) =
         let l = Seq.map f source |> Seq.toList
-        let rec go gs acc size r0 = 
+        let rec go gs acc size r0 =
             match gs with
             | [] ->
                 struct (List.rev acc, r0)
@@ -318,7 +318,7 @@ module Gen =
         // to sequences to avoid intermediate conversion to an intermediate list.
         Gen (fun s r0 ->
                 let mutable r1 = Rnd()
-                let mutable r2 = Rnd()            
+                let mutable r2 = Rnd()
                 Random.Split(r0, &r1, &r2)
                 let result =
                     seq { let mutable r' = r1
@@ -339,7 +339,7 @@ module Gen =
     /// Sequence the given array of generators into a generator of an array.
     //[category: Creating generators from generators]
     [<CompiledName("SequenceToArray")>]
-    let sequenceToArray (source:seq<Gen<'T>>) = 
+    let sequenceToArray (source:seq<Gen<'T>>) =
         collectToArray id source
 
     /// Sequence the given seq of generators into a generator of a seq.
@@ -357,11 +357,11 @@ module Gen =
     ///so that you can choose the word that makes your code most readable in your given context.
     //[category: Creating generators from generators]
     [<CompiledName("TryWhere")>]
-    let tryWhere (predicate:'T->bool) generator = 
+    let tryWhere (predicate:'T->bool) generator =
         let rec tryValue k s =
-            match (k,s) with 
+            match (k,s) with
             | (_,0) -> constant None
-            | (k,s) -> (resize (2*k+s) generator) |> bind (fun x -> 
+            | (k,s) -> (resize (2*k+s) generator) |> bind (fun x ->
                          if predicate x then constant (Some x)
                          else tryValue (k+1) (s-1))
         sized (max 1 >> tryValue 0)
@@ -377,21 +377,21 @@ module Gen =
     let tryFilter (predicate:'T->bool) generator = tryWhere predicate generator
 
     ///Generates a value that satisfies a predicate. Contrary to tryWhere, this function keeps re-trying
-    ///by increasing the size of the original generator ad infinitum.  Make sure there is a high probability that 
+    ///by increasing the size of the original generator ad infinitum.  Make sure there is a high probability that
     ///the predicate is satisfied.
     ///
     ///The `where` function is also aliased as `filter`. These two functions are identical, but co-exist
     ///so that you can choose the word that makes your code most readable in your given context.
     //[category: Creating generators from generators]
     [<CompiledName("Where")>]
-    let rec where (predicate:'T->bool) generator = 
+    let rec where (predicate:'T->bool) generator =
         tryWhere predicate generator |> bind (fun mx ->
               match mx with
               | Some x    -> constant x
               | None      -> sized (fun n -> resize (n+1) (where predicate generator)))
-    
+
     ///Generates a value that satisfies a predicate. Contrary to tryFilter, this function keeps re-trying
-    ///by increasing the size of the original generator ad infinitum.  Make sure there is a high probability that 
+    ///by increasing the size of the original generator ad infinitum.  Make sure there is a high probability that
     ///the predicate is satisfied.
     ///
     ///The `filter` function is an alias for the `where` function. These two functions are identical, but co-exist
@@ -423,14 +423,14 @@ module Gen =
     /// all elements equals the given sum.
     //[category: Creating generators]
     [<CompiledName("Piles")>]
-    let piles length sum = 
+    let piles length sum =
         let genSorted p n m = Gen (fun s r0 ->
             let result = Array.zeroCreate<int> p
             let mutable n = n
             let mutable m = m
             let mutable r = r0
             for i in p..(-1)..1 do
-                if i = 1 then 
+                if i = 1 then
                     result.[i-1] <- n
                 else
                     let next = Random.RangeInt(int (ceil(float n / float i)), min m n, r, &r)
@@ -446,7 +446,7 @@ module Gen =
     /// Generates lists of given length, containing values generated by the given generator.
     //[category: Creating generators from generators]
     [<CompiledName("ListOf")>]
-    let listOfLength length gen :Gen<list<'T>> = 
+    let listOfLength length gen :Gen<list<'T>> =
         sequenceToList [ for _ in 1..length -> gen ]
 
     /// Generates lists of random lengths between zero and size.
@@ -479,7 +479,7 @@ module Gen =
     /// Generates arrays of random length between zero and size.
     //[category: Creating generators from generators]
     [<CompiledName("ArrayOf")>]
-    let arrayOf gen: Gen<'T[]> = 
+    let arrayOf gen: Gen<'T[]> =
        sized (fun n ->
             choose (0,n)
             |> bind (fun k ->
@@ -489,18 +489,18 @@ module Gen =
     /// Generates 2D arrays of the given dimensions.
     //[category: Creating generators from generators]
     [<CompiledName("Array2DOf")>]
-    let array2DOfDim (rows: int) (cols: int) gen :Gen<'T[,]> = 
+    let array2DOfDim (rows: int) (cols: int) gen :Gen<'T[,]> =
         arrayOfLength (rows * cols) gen
         |> map (fun arr -> Array2D.init rows cols (fun r c -> arr.[cols*r + c]))
 
     /// Generates a 2D array. The square root of the size is the maximum number of rows and columns.
     //[category: Creating generators from generators]
     [<CompiledName("Array2DOf")>]
-    let array2DOf gen :Gen<'T[,]> = 
+    let array2DOf gen :Gen<'T[,]> =
         let chooseSqrtOfSize n = choose(0, n |> float |> sqrt |> int)
         sized (fun n ->
             chooseSqrtOfSize n
-            |> two 
+            |> two
             |> bind (fun (rows,cols) -> array2DOfDim rows cols gen))
 
 
@@ -508,7 +508,7 @@ module Gen =
     let internal bool = choose(0,1) |> map ((=) 1)
 
     /// Generates sublists of the given seq. For a given list of length n,
-    /// each sublist has between 0 and n elements, and the order of the 
+    /// each sublist has between 0 and n elements, and the order of the
     /// elements is the same as in the given seq.
     //[category: Creating generators]
     [<CompiledName("SubListOf")>]
@@ -518,14 +518,14 @@ module Gen =
         // but that skews towards shorter lists. This implementation generates a bitmask up to the
         // length of the input list, and so all possible sublists are equally likely.
         arrayOfLength elems.Length bool
-        |> map (fun bitmask -> 
+        |> map (fun bitmask ->
             [ for i in 0..bitmask.Length-1 do
                 if bitmask.[i] then yield elems.[i] ])
 
     ///Generates option values that are 'None' 1/8 of the time.
     //[category: Creating generators from generators]
     let optionOf g :Gen<option<'T>> = frequency [(1, constant None); (7, map Some g)]
-    
+
     // struct type to wrap the keys in the pureFunction cache -
     // to deal with caching null keys.
     [<Struct>]
